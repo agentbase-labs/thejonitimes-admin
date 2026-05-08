@@ -30,6 +30,11 @@ export function rotatedAt(): string {
 
 export async function verifyPassword(username: string, password: string): Promise<boolean> {
   if (username !== ADMIN_USERNAME) return false;
+  // Option 1: plain-text compare (if ADMIN_PASSWORD env var is set).
+  // This is what AgentBase currently ships to Render.
+  const plain = process.env.ADMIN_PASSWORD;
+  if (plain && password === plain) return true;
+  // Option 2: bcrypt hash compare (if ADMIN_PASSWORD_HASH is set).
   try {
     return await bcrypt.compare(password, passwordHash());
   } catch {

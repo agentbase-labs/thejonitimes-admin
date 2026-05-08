@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 function LoginForm() {
   const [u, setU] = useState('admin');
   const [p, setP] = useState('');
+  const [show, setShow] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
@@ -43,13 +44,23 @@ function LoginForm() {
       </div>
       <div>
         <label className="block text-xs uppercase tracking-wider text-muted mb-1">Password</label>
-        <input
-          type="password"
-          value={p}
-          onChange={(e) => setP(e.target.value)}
-          autoComplete="current-password"
-          className="w-full border border-rule px-3 py-2 font-sans text-sm focus:outline-none focus:border-ink"
-        />
+        <div className="relative">
+          <input
+            type={show ? 'text' : 'password'}
+            value={p}
+            onChange={(e) => setP(e.target.value)}
+            autoComplete="current-password"
+            className="w-full border border-rule px-3 py-2 pr-14 font-sans text-sm focus:outline-none focus:border-ink"
+          />
+          <button
+            type="button"
+            onClick={() => setShow(!show)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-xs uppercase tracking-wider text-muted hover:text-ink px-2 py-1"
+            tabIndex={-1}
+          >
+            {show ? 'Hide' : 'Show'}
+          </button>
+        </div>
       </div>
       {err && <div className="text-sm text-alert">{err}</div>}
       <button
