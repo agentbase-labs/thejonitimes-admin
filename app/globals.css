@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html, body {
+  background: #fbfbf9;
+  color: #111;
+  font-family: "EB Garamond", "IBM Plex Serif", Georgia, serif;
+}
+
+.mast {
+  font-family: "EB Garamond", Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+.num {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.rule {
+  border-color: #e5e5e5;
+}
+
+.kpi {
+  border: 1px solid #e5e5e5;
+  background: #fff;
+}
+
+.card {
+  border: 1px solid #e5e5e5;
+  background: #fff;
+}
+
+.table-row + .table-row {
+  border-top: 1px solid #f0f0f0;
+}
+
+.heat {
+  background: linear-gradient(90deg, #111 0%, #111 var(--pct, 0%), #f0f0f0 var(--pct, 0%), #f0f0f0 100%);
+}
+
+@keyframes pulse-row {
+  0%   { background-color: rgba(192, 57, 43, 0.12); }
+  100% { background-color: transparent; }
+}
+
+.pulse {
+  animation: pulse-row 1.2s ease-out;
+}
+
+a { color: inherit; }
+a:hover { text-decoration: underline; }

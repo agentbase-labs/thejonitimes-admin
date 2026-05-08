@@ -1,68 +1,68 @@
-# TheJoniTimes Admin Dashboard
+# TheJoniTimes — Admin
 
-A standalone Express server serving a secure, dark-mode admin dashboard for TheJoniTimes editorial team.
+Private analytics dashboard for [thejonitimes.com](https://thejonitimes.com).
 
-## Features
+- Next.js 14 App Router, **server** (not static export).
+- SQLite (`better-sqlite3`) for analytics storage; read-only mirror of the main site's articles DB.
+- JWT session cookie + bcrypt password (single admin user).
+- Lightweight `/b.js` beacon served from this app; main site loads it as `<script async src="https://admin.thejonitimes.com/b.js"></script>`.
 
-- 🔐 Password-protected login
-- 📊 Real-time stats: total views, views today, views by country
-- 📰 Article counts, top 10 most viewed, articles by topic
-- 📈 Charts: 30-day views trend, 30-day publish trend, topic donut
-- 🏷️ Top tags cloud
-- 🌍 Country breakdown with flag emojis + bar charts
-- Auto-refreshes every 60 seconds
-
-## Environment Variables
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `ADMIN_PASSWORD` | ✅ Yes | `admin` | Login password |
-| `PORT` | No | `3001` | Server port |
-| `SESSION_SECRET` | No | (insecure default) | Express session secret — set in prod! |
-| `DB_PATH` | No | `../data/articles.db` | Absolute path to SQLite DB |
-
-## Run Locally
+## Local dev
 
 ```bash
-cd admin-server
 npm install
-ADMIN_PASSWORD=yourpassword node server.js
-# Open http://localhost:3001/admin
+npm run setup        # creates data/analytics.db + copies articles.db + writes .env.local + seeds demo data
+npm run build
+npm run start        # http://localhost:3000
 ```
 
-## Deploy to Render
+Login: `admin` / `thejoni2026!`
 
-The `render.yaml` in this directory defines a Web Service:
+## Environment
 
-1. Go to Render → New Web Service → connect your repo
-2. Set root directory to `admin-server/`
-3. Set env vars: `ADMIN_PASSWORD`, `SESSION_SECRET`
-4. For `DB_PATH`: use a Render disk mount at `/data/articles.db`
-   - The disk must be shared with the main site's DB (or synced)
+| Var                         | Purpose                                              |
+| --------------------------- | ---------------------------------------------------- |
+| `JWT_SECRET`                | Signs the session cookie. 32+ random bytes.          |
+| `ADMIN_PASSWORD_HASH`       | bcrypt hash of admin password (override default).    |
+| `ADMIN_PASSWORD_ROTATED_AT` | Display-only date shown on Settings page.            |
+| `PORT`                      | Listen port (Render sets this).                      |
 
-## Tracking Page Views
+Rotate password:
 
-To track views from the main static site, add this snippet to each page:
-
-```html
-<script>
-(function() {
-  var TRACKER = 'https://your-admin-server.onrender.com/api/track';
-  var slug = window.location.pathname.replace(/^\/article\//, '').replace(/\/$/, '');
-  if (!slug || slug === '') return;
-  fetch(TRACKER, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slug: slug, country: 'Unknown' })
-  }).catch(function(){});
-})();
-</script>
+```bash
+node -e "console.log(require('bcryptjs').hashSync('new-password', 10))"
 ```
 
-For country detection, use a geo-IP service (e.g. `https://ipapi.co/json/`) and pass `country` in the request.
+…then update `ADMIN_PASSWORD_HASH` in the Render env vars.
 
-## Notes
+## Routes
 
-- The `page_views` table is auto-created in the SQLite DB on first run
-- The `/api/track` endpoint is public (CORS *) — no auth needed for the main site to call it
-- Session cookies expire after 24 hours
+- `GET /` — overview (KPIs + charts + tables)
+- `GET /articles` — content stats
+- `GET /live` — realtime list (polls `/api/live` every 5s)
+- `GET /settings` — admin settings
+- `POST /api/login` — authenticate (public)
+- `POST /api/logout`
+- `POST /api/beacon` — public CORS endpoint used by `b.js`
+- `GET /api/live` — JSON feed for `/live`
+- `GET /b.js` — public beacon script
+
+Middleware protects everything except `/login`, `/api/login`, `/api/beacon`, and `/b.js`.
+
+## Sync articles
+
+The articles DB is read-only here and copied from the main site.
+
+```bash
+npm run sync-articles
+```
+
+For production, run this on a nightly cron (Render job or external).
+
+## Seed data
+
+First `npm run setup` inserts ~300 fake pageviews across the last 7 days so the dashboard has something to show. Purge them with:
+
+```sql
+DELETE FROM pageviews WHERE referrer LIKE 'seed://%' OR session_id LIKE 'seed_%';
+```
