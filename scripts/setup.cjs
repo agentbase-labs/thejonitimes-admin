@@ -78,7 +78,19 @@ if (!fs.existsSync(ENV_PATH)) {
   console.log(`• .env.local already exists — keeping it`);
 }
 
-// 4) Seed ~300 fake pageviews
+// 4) Seed ~300 fake pageviews (LOCAL DEV ONLY)
+// On Render (RENDER env var set) we never seed, and we also purge any previous seed rows.
+const IS_RENDER = !!process.env.RENDER || !!process.env.RENDER_SERVICE_ID;
+const SKIP_SEED = IS_RENDER || process.env.SKIP_SEED === '1' || process.env.NODE_ENV === 'production';
+
+if (SKIP_SEED) {
+  const purged = db.prepare("DELETE FROM pageviews WHERE referrer LIKE 'seed://%' OR session_id LIKE 'seed_%'").run();
+  console.log(`• production mode: skipping seed; purged ${purged.changes} existing seed rows`);
+  db.close();
+  console.log('\nDone. Next: npm run build && npm run start');
+  process.exit(0);
+}
+
 const existing = db.prepare('SELECT COUNT(*) AS n FROM pageviews').get().n;
 if (existing === 0) {
   let slugs = [];
