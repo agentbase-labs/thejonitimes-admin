@@ -30,6 +30,74 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_pv_country   ON page_views(country);
 `);
 
+// ─── Articles sync from main site ─────────────────────────────────────────────
+const ARTICLES_DATA_URL = process.env.ARTICLES_DATA_URL || 'https://thejonitimes.com/articles-data.json';
+
+async function syncArticles() {
+  try {
+    const { default: https } = await import('https');
+    const { default: http } = await import('http');
+    const lib = ARTICLES_DATA_URL.startsWith('https') ? https : http;
+    const data = await new Promise((resolve, reject) => {
+      lib.get(ARTICLES_DATA_URL, (res) => {
+        let body = '';
+        res.on('data', (d) => body += d);
+        res.on('end', () => {
+          try { resolve(JSON.parse(body)); } catch(e) { reject(e); }
+        });
+      }).on('error', reject);
+    });
+    if (!data || !data.articles) return;
+    // Ensure articles table exists
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS articles (
+        id INTEGER PRIMARY KEY,
+        slug TEXT UNIQUE NOT NULL,
+        headline TEXT NOT NULL,
+        subheadline TEXT NOT NULL DEFAULT '',
+        body_md TEXT NOT NULL DEFAULT '',
+        topic TEXT NOT NULL,
+        tags_json TEXT NOT NULL DEFAULT '[]',
+        image_path TEXT NOT NULL DEFAULT '',
+        published_at TEXT NOT NULL,
+        author TEXT NOT NULL DEFAULT 'Joni',
+        language TEXT NOT NULL DEFAULT 'en',
+        hero_rank INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+    const upsert = db.prepare(`
+      INSERT OR REPLACE INTO articles (id, slug, headline, subheadline, body_md, topic, tags_json, image_path, published_at, author, language, hero_rank)
+      VALUES (@id, @slug, @headline, @subheadline, @body_md, @topic, @tags_json, @image_path, @published_at, @author, @language, @hero_rank)
+    `);
+    const upsertMany = db.transaction((rows) => {
+      for (const row of rows) {
+        upsert.run({
+          id: row.id,
+          slug: row.slug,
+          headline: row.headline,
+          subheadline: row.subheadline || '',
+          body_md: row.body_md || '',
+          topic: row.topic,
+          tags_json: row.tags_json || '[]',
+          image_path: row.image_path || '',
+          published_at: row.published_at,
+          author: row.author || 'Joni',
+          language: row.language || 'en',
+          hero_rank: row.hero_rank || 0
+        });
+      }
+    });
+    upsertMany(data.articles);
+    console.log(`[sync] Synced ${data.articles.length} articles from main site`);
+  } catch(e) {
+    console.warn('[sync] Could not sync articles:', e.message);
+  }
+}
+
+// Sync on startup and every 5 minutes
+syncArticles();
+setInterval(syncArticles, 5 * 60 * 1000);
+
 // ─── Middleware ──────────────────────────────────────────────────────────────
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
