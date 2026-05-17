@@ -14,6 +14,7 @@ function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;
   if (pathname.startsWith('/_next/')) return true;
   if (pathname.startsWith('/api/beacon')) return true;
+  if (pathname.startsWith('/img/')) return true;
   return false;
 }
 
